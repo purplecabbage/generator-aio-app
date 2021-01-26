@@ -18,6 +18,8 @@ const { sdkCodes, isLoopingPrompts } = require('../../lib/constants')
 
 const inquirer = require('inquirer')
 
+let pkgJsonStatus = 'force'
+
 // we have one actions generator per service, an action generator could generate different types of actions
 const sdkCodeToActionGenerator = {
   [sdkCodes.target]: path.join(__dirname, 'target/index.js'),
@@ -93,9 +95,22 @@ class AddActions extends Generator {
     }))
   }
 
-  async install () {
-    // this condition makes sure it doesn't print any unwanted 'skip install message' into parent generator
+  async conflicts () {
     if (!this.options['skip-install']) {
+      const pre = this.fs.exists('package.json') ? this.fs.read('package.json') : ''
+      this.conflicter.collision({
+        path: 'package.json',
+        contents: pre
+      }, status => {
+        pkgJsonStatus = status
+      })
+    }
+  }
+
+  async install () {
+    // pkgJsonStatus could be identical, skip, or force
+    // this condition makes sure it doesn't print any unwanted 'skip install message' into parent generator
+    if (!this.options['skip-install'] && pkgJsonStatus === 'force') {
       return this.installDependencies({ bower: false })
     }
   }
